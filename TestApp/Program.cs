@@ -18,7 +18,7 @@ namespace TestApp
                             Task.CurrentId, Thread.CurrentThread.ManagedThreadId,
                             SynchronizationContext.Current);
 
-            Thread.Sleep(5000);
+            Thread.Sleep(2000);
 
             Console.WriteLine("---Task id={0},Thread id={1},Context={2}---",
                             Task.CurrentId, Thread.CurrentThread.ManagedThreadId,
@@ -47,28 +47,51 @@ namespace TestApp
 
             await Task.Run(() => { HeavyMethod(); });
 
-            ExecContinue();
+            Console.WriteLine("--Task id={0},Thread id={1},Context={2}--",
+                Task.CurrentId, Thread.CurrentThread.ManagedThreadId,
+                SynchronizationContext.Current);
 
             Console.WriteLine("--Exit HeavyWork()--");
 
         }
 
-        static void HeavyWork2()
+        static Task HeavyWork2()
         {
             Console.WriteLine("--Enter HeavyWork2()--");
 
             Console.WriteLine("--Task id={0},Thread id={1},Context={2}--",
                 Task.CurrentId, Thread.CurrentThread.ManagedThreadId,
                 SynchronizationContext.Current);
+            var state = 0;
+            Task tsk = null;
 
-            Task t = Task.Run(() => { HeavyMethod(); }).
-                ContinueWith((_) =>
+            void a()
+            {
+                switch (state)
                 {
-                    ExecContinue();
-                },
-                TaskScheduler.FromCurrentSynchronizationContext());
+                    case 1: goto Case_1;
+                }
 
-            Console.WriteLine("--Exit HeavyWork2()--");
+                tsk = Task.Run(() => { HeavyMethod(); });
+                tsk.ContinueWith((_) => { a(); }, TaskScheduler.Default);
+                state = 1;
+                return;
+
+            Case_1:
+                tsk.Wait();
+
+                Console.WriteLine("--Task id={0},Thread id={1},Context={2}--",
+                    Task.CurrentId, Thread.CurrentThread.ManagedThreadId,
+                    SynchronizationContext.Current);
+
+                Console.WriteLine("--Exit HeavyWork2()--");
+
+                return;
+
+            }
+
+            a();
+            return tsk;
 
         }
 
@@ -82,7 +105,7 @@ namespace TestApp
 
             Console.WriteLine("Before call HeavyWork()");
             Task t = HeavyWork();
-            Console.WriteLine("Return from HeavyWork()[tid={0}]", t.Id);
+            Console.WriteLine("Return from HeavyWork()");
             Console.WriteLine("Task id={0},Thread id={1},Context={2}",
                 Task.CurrentId, Thread.CurrentThread.ManagedThreadId,
                 SynchronizationContext.Current);
